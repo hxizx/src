@@ -167,10 +167,10 @@ def main():
     while True:
         print(f"{BLUE}Multi-Tool Menu:{RESET}")
         print(f"{PURPLE}1. Process File{RESET}")
-        print(f"{PURPLE}2. Spam Webhook{RESET}")
-        print(f"{BLUE}3. Exit{RESET}")
+        print(f"{BLUE}2. Spam Webhook{RESET}")
+        print(f"{PURPLE}3. Exit{RESET}")
 
-        choice = input(f"{PURPLE}Please choose an option (1, 2, or 3): {RESET}")
+        choice = input(f"{BLUE}Please choose an option (1, 2, or 3): {RESET}")
 
         if choice == '1':
             # Predefined input file path and output folder
