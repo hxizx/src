@@ -93,10 +93,8 @@ def validate_key(url, user_key):
             continue  # Skip malformed lines
         key, stored_hwid = pair.split(':', 1)  # Ensure only one split
         if key == user_key and stored_hwid == hwid:
-
             return True
     return False
-
 
 def process_file(input_file_path, output_folder, search_term):
     # Ensure the output folder exists
@@ -168,9 +166,10 @@ def main():
         print(f"{BLUE}Multi-Tool Menu:{RESET}")
         print(f"{PURPLE}1. Process File{RESET}")
         print(f"{BLUE}2. Spam Webhook{RESET}")
-        print(f"{PURPLE}3. Exit{RESET}")
+        print(f"{PURPLE}3. Validate Discord Token{RESET}")
+        print(f"{BLUE}4. Exit{RESET}")
 
-        choice = input(f"{BLUE}Please choose an option (1, 2, or 3): {RESET}")
+        choice = input(f"{PURPLE}Please choose an option (1, 2, 3, or 4): {RESET}")
 
         if choice == '1':
             # Predefined input file path and output folder
@@ -194,6 +193,15 @@ def main():
             time.sleep(0.5)
             os.system("cls")
         elif choice == '3':
+            token = input("Enter the Discord token to check: ")
+            is_valid, username = check_discord_token(token)
+            if is_valid:
+                print(f"Token is valid. Username: {username}")
+            else:
+                print("Token is invalid.")
+            time.sleep(2)
+            os.system("cls")
+        elif choice == '4':
             print("Exiting the program.")
             break
         else:
@@ -211,6 +219,17 @@ def check_key_and_run():
         main()
     else:
         print("Invalid key or HWID mismatch. Access denied.")
+
+def check_discord_token(token):
+    headers = {
+        'Authorization': token
+    }
+    response = requests.get('https://discord.com/api/v9/users/@me', headers=headers)
+    if response.status_code == 200:
+        user_data = response.json()
+        return True, user_data['username']
+    else:
+        return False, None
 
 if __name__ == "__main__":
     check_key_and_run()
