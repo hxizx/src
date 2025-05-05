@@ -230,7 +230,7 @@ def main():
         print(f"{PURPLE}5. Boost Nitro Server{RESET}")
         print(f"{BLUE}6. Exit{RESET}")
 
-        choice = input(f"{PURPLE}Please choose an option (1, 2, 3, 4, 5, or 6): {RESET}")
+        choice = input(f"{PURPLE}Option : {RESET}")
 
         if choice == '1':
             input_file_path = 'in.txt'
